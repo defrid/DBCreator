@@ -7,7 +7,7 @@
 package VKWorkers;
 
 /**
- *
+ * Класс работы с VK API ориентированный на группы
  * @author pavel
  */
 public class DownloaderGroup extends Downloader {
@@ -16,8 +16,12 @@ public class DownloaderGroup extends Downloader {
         super(gid);
     }
     
+    /**
+     * Возвращает список членов группы
+     * @return Массив ID членов группы
+     */
     public String[] getGroupMembers() {
-        return getPersons("groups").split(",");
+        return getPersons("groups.getMembers").split(",");
     }
     
 }

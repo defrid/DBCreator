@@ -12,7 +12,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 /**
- *
+ * Класс работы с VK API
  * @author pavel
  */
 public class Downloader {
@@ -24,6 +24,11 @@ public class Downloader {
         id = _id;
     }
     
+    /**
+     * Возвращает GET-запрос
+     * @param address Адресс запроса
+     * @return GET-запрос в виде строки
+     */
     protected String requestGET(String address) {
         String result = "";
         try {
@@ -49,17 +54,30 @@ public class Downloader {
         return result;
     }
     
-    protected String getPersons(String type) {
-        String response = requestGET(BASE_URI + type + ".get?uid=" + id);
+    /**
+     * Возвращает строку со списком связаных людей
+     * @param type
+     * @return 
+     */
+    protected String getPersons(String request) {
+        String response = requestGET(BASE_URI + request + "?uid=" + id);
         int start = response.indexOf('[');
         int end = response.indexOf(']');
         return response.substring(start + 1, end);
     }
     
+    /**
+     * Возвращает друзей человека
+     * @return Массив ID друзей
+     */
     public String[] getPersonFriends() {
-        return getPersons("friends").split(",");
+        return getPersons("friends.get").split(",");
     }
 
+    /**
+     * Возвращает результат XML-запроса данных человека
+     * @return результат запроса
+     */
     public String getPersonXMLData() {
         StringBuilder request = new StringBuilder(BASE_URI);
         request = request.append("users.get.xml?uid=");

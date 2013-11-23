@@ -32,11 +32,14 @@ public class DBFillerGroup extends DBFiller {
         tx.close();
     }
     
+    /**
+     * Заполняет БД людьми из группы
+     */
     private void fillFromGroup() {
         DownloaderGroup group = new DownloaderGroup(baseId);
         String[] ids = group.getGroupMembers();
         for(String id : ids){
-            fillDB_Snowball();
+            fillDB_Snowball(id);
         }
     }
     

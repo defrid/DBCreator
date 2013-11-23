@@ -30,7 +30,7 @@ import org.neo4j.tooling.GlobalGraphOperations;
 import org.xml.sax.InputSource;
 
 /**
- *
+ * This class creates and fills DB
  * @author pavel
  */
 
@@ -44,10 +44,13 @@ public class DBFiller {
     protected String baseId;
     
     protected static enum RelTypes implements RelationshipType {
-
         FRIEND
     }
 
+    /**
+     * Регистрирует "выключатель" обращения к графу в базе данных
+     * @param graphDb Граф
+     */
     protected void registerShutdownHook(final GraphDatabaseService graphDb) {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
@@ -65,7 +68,12 @@ public class DBFiller {
         tx.success();
         tx.close();
     }    
-
+    /**
+     * Возвращает одно конкретное поле
+     * @param name Имя поля
+     * @param e xml-элемент
+     * @return Поле xml
+     */
     protected String getOneField(String name, Element e) {
         if (e.getChild(name) != null) {
             String temp = e.getChild(name).getText().replaceAll("\'", "");
@@ -76,6 +84,11 @@ public class DBFiller {
         return "?";
     }
     
+    /**
+     * Возвращает HashMap из Xml
+     * @param xml
+     * @return Hash map из Xml
+     */
     protected HashMap<String, Object> parsePersonXML(String xml) {
         HashMap<String, Object> personData = new HashMap<String, Object>();
         try {
@@ -109,11 +122,16 @@ public class DBFiller {
         return personData;
     }
 
-    protected void setRelationship(Node tempPerson, Node parentPerson) {
-        Iterable<Relationship> relationships = tempPerson.getRelationships(Direction.BOTH);
+    /**
+     * Создает связь между двумя узлами
+     * @param curPerson Текущий узел
+     * @param parentPerson Родительский узел
+     */
+    protected void setRelationship(Node curPerson, Node parentPerson) {
+        Iterable<Relationship> relationships = curPerson.getRelationships(Direction.BOTH);
         boolean relationAlreadyExist = false;
         for (Relationship tempRel : relationships) {
-            if (tempRel.getOtherNode(tempPerson).getId() == parentPerson.getId()) {
+            if (tempRel.getOtherNode(curPerson).getId() == parentPerson.getId()) {
                 relationAlreadyExist = true;
                 break;
             }
@@ -121,7 +139,7 @@ public class DBFiller {
         if (!relationAlreadyExist) {
             Transaction tx = graphDb.beginTx();
             try {
-                parentPerson.createRelationshipTo(tempPerson, RelTypes.FRIEND);
+                parentPerson.createRelationshipTo(curPerson, RelTypes.FRIEND);
                 tx.success();
             } finally {
                 tx.close();
@@ -129,61 +147,85 @@ public class DBFiller {
         }
     }
 
+    /**
+     * Добавляет человека в базу данных
+     * @param personProperties Поля базы данных
+     * @return Добавленый узел
+     */
     protected Node addPersonToDB(HashMap<String, Object> personProperties) {
         Transaction tx = graphDb.beginTx();
-        Node tempPerson = null;
+        Node curPerson = null;
         Node existingNode = nodeIndex.get("uid", personProperties.get("uid")).getSingle();
         try {
             if (existingNode == null) {
-                tempPerson = graphDb.createNode();
+                curPerson = graphDb.createNode();
                 Iterator<String> keySetIterator = personProperties.keySet().iterator();
                 while (keySetIterator.hasNext()) {
                     String key = keySetIterator.next();
-                    tempPerson.setProperty(key, personProperties.get(key));
+                    curPerson.setProperty(key, personProperties.get(key));
                 }
-                nodeIndex.add(tempPerson, "uid", personProperties.get("uid"));
+                nodeIndex.add(curPerson, "uid", personProperties.get("uid"));
             }
             tx.success();
         } finally {
             tx.close();
         }
-        return tempPerson;
+        return curPerson;
     }
 
+    /**
+     * Добавляет человека в базу данных с занесением связи с родителем
+     * @param personProperties Поля базы данных
+     * @param parentUid ID родителя
+     * @return Добавленый узел
+     */
     protected Node addPersonToDB(HashMap<String, Object> personProperties, String parentUid) {
-        Node tempPerson = addPersonToDB(personProperties);
+        Node curPerson = addPersonToDB(personProperties);
         Node parentPerson = nodeIndex.get("uid", parentUid).getSingle();
         Transaction tx = graphDb.beginTx();
         try {
-            if (tempPerson == null) {
-                tempPerson = nodeIndex.get("uid", personProperties.get("uid")).getSingle();
+            if (curPerson == null) {
+                curPerson = nodeIndex.get("uid", personProperties.get("uid")).getSingle();
             }
-            setRelationship(tempPerson, parentPerson);
+            setRelationship(curPerson, parentPerson);
             tx.success();
         } finally {
             tx.close();
         }
-        return tempPerson;
+        return curPerson;
     }
     
+    /**
+     * Заполняет базу данных
+     */
     public void fillDB() {
         Transaction tx = graphDb.beginTx();
-        fillDB_Snowball();
+        fillDB_Snowball(baseId);
         tx.success();
         tx.close();
     }
     
-    protected void fillDB_Snowball() {
-        Downloader person = new Downloader(baseId);
+    /**
+     * Заполнение БД от текущего центра
+     * @param id ID центра
+     */
+    protected void fillDB_Snowball(String id) {
+        Downloader person = new Downloader(id);
         HashMap<String, Object> personData = parsePersonXML(person.getPersonXMLData());
         String[] friendUids = person.getPersonFriends();
         personData.put(FRIEND_LIST_KEY, friendUids);
         addPersonToDB(personData);
         for (String tempFriend : friendUids) {
-            recFillingDB(tempFriend, baseId, 1);
+            recFillingDB(tempFriend, id, 1);
         }
     }
-
+    
+    /**
+     * Рекурсивное заполнение до нижнего уровня от текущего узла и добавление связей между узлами
+     * @param curUid Текущий узел
+     * @param parentUid Родительский узел
+     * @param lvl Текущий уровень
+     */
     protected void recFillingDB(String curUid, String parentUid, int lvl) {
         if (lvl == MAX_LEVEL) {
             return;
@@ -206,9 +248,13 @@ public class DBFiller {
         }
     }
     
-    protected void setOneNodeRelations(Node tempNode) {
-        if (tempNode.hasProperty(FRIEND_LIST_KEY)) {
-            String[] friendsUidList = (String[]) tempNode.getProperty(FRIEND_LIST_KEY);
+    /**
+     * Добавление связей между узлом и его друзьями
+     * @param curNode Текущий узел
+     */
+    protected void setOneNodeRelations(Node curNode) {
+        if (curNode.hasProperty(FRIEND_LIST_KEY)) {
+            String[] friendsUidList = (String[]) curNode.getProperty(FRIEND_LIST_KEY);
             for (String tempFriendUid : friendsUidList) {
                 Node tempFriend = nodeIndex.get("uid", tempFriendUid).getSingle();
                 if (tempFriend == null) {
@@ -217,18 +263,21 @@ public class DBFiller {
                 Iterable<Relationship> relationships = tempFriend.getRelationships(Direction.BOTH);
                 boolean relationAlreadyExist = false;
                 for (Relationship tempRel : relationships) {
-                    if (tempRel.getEndNode().getId() == tempNode.getId()) {
+                    if (tempRel.getEndNode().getId() == curNode.getId()) {
                         relationAlreadyExist = true;
                         break;
                     }
                 }
                 if (!relationAlreadyExist) {
-                    tempNode.createRelationshipTo(tempFriend, RelTypes.FRIEND);
+                    curNode.createRelationshipTo(tempFriend, RelTypes.FRIEND);
                 }
             }
         }
     }
     
+    /**
+     * Расставляет недостающие связи между узлами
+     */
     public void setAllRelations() {
         Transaction tx = graphDb.beginTx();
         try {
