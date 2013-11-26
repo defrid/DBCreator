@@ -15,8 +15,8 @@ import org.neo4j.graphdb.Transaction;
  */
 public class DBFillerGroup extends DBFiller {
     
-    public DBFillerGroup (String groupId) {
-        super(groupId);
+    public DBFillerGroup (String groupId, int level) {
+        super(groupId, level);
         registerShutdownHook(graphDb);
         Transaction tx = graphDb.beginTx();
         nodeIndex = graphDb.index().forNodes("uids");

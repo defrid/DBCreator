@@ -8,7 +8,7 @@ import DBWorkers.DBFiller;
  */
 public class DBCreator {
     public static void main(String[] args) {
-        DBFiller db = new DBFiller("86030925");
+        DBFiller db = new DBFiller("86030925", 2);
         db.fillDB();
         db.setAllRelations();
     }

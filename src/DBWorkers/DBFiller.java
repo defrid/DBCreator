@@ -40,7 +40,7 @@ public class DBFiller {
     protected static final String FRIEND_LIST_KEY = "friend_list";
     protected static final GraphDatabaseService graphDb = new GraphDatabaseFactory().newEmbeddedDatabase(DB_PATH);
     protected static Index<Node> nodeIndex;
-    protected static final int MAX_LEVEL = 2;
+    protected static int MAX_LEVEL;
     protected String baseId;
     
     protected static enum RelTypes implements RelationshipType {
@@ -60,7 +60,8 @@ public class DBFiller {
         });
     }
     
-    public DBFiller (String startId) {
+    public DBFiller (String startId, int level) {
+        MAX_LEVEL = level;
         baseId = startId;
         registerShutdownHook(graphDb);
         Transaction tx = graphDb.beginTx();
